@@ -1,87 +1,78 @@
-import * as Sequelize from "sequelize";
-import { Model, HasManyCreateAssociationMixin } from "sequelize";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Generated, OneToMany, getManager } from "typeorm";
 import * as bcrypt from "bcrypt";
 import logger from "../Logger";
-import sequelize from "../Database";
-import Authkey from "./Authkey";
+import { Session } from "./";
+
+
+export enum UserType {
+    Administrator = "Administrator",
+    Student = "Student",
+    Teacher = "Teacher"
+}
 
 
 /**
  * 用户
  */
-class User extends Model {
+@Entity()
+export class User {
+    @PrimaryGeneratedColumn("uuid")
     id: number;
+
+    @Column()
     email: string;
+
+    @Column()
     passwordHash: string;
 
+    @CreateDateColumn()
     createdAt: Date;
+
+    @UpdateDateColumn()
     updatedAt: Date;
 
-    createAuthkey: HasManyCreateAssociationMixin<Authkey>;
-}
+    @Column()
+    type: UserType;
 
-User.init({
-    email: {
-        type:      Sequelize.STRING,
-        allowNull: false,
-        comment:   "邮箱地址，大小写不敏感" },
-    passwordHash: {
-        type:      Sequelize.STRING,
-        allowNull: false,
-        comment:   "密码哈希，大小写不敏感" }
-}, { sequelize });
+    @OneToMany(type => Session, session => session.user)
+    sessions: Session[];
 
+    /**
+     * 修改密码。
+     * @param newPassword 新密码
+     */
+    async modifyPassword(newPassword: string): Promise<void> {
+        const saltRounds = 10;
 
-/**
- * 检查邮箱地址是否已被注册
- * @param email 待检查的邮箱
- */
-export async function checkEmailAvailabilty(email: string): Promise<boolean> {
-    if (email === "") {
-        return false;
+        let passwordHash = "";
+        await bcrypt.hash(newPassword, saltRounds)
+            .then((hash) => {
+                passwordHash = hash;
+            })
+            .catch(reason => {
+                logger.error(reason);
+            });
+
+        this.passwordHash = passwordHash;
     }
-    const emailCount: number = await User.count({ where: { email: { [Sequelize.Op.iLike]: email } } });
-    return emailCount === 0;
+
+    /**
+     * 验证密码是否正确。
+     * @param password 待验证的密码
+     */
+    async verifyPassword(password: string): Promise<boolean> {
+        let result = false;
+
+        await bcrypt.compare(password, this.passwordHash)
+            .then((res) => {
+                result = res;
+            });
+
+        return result;
+    }
+
+    // 新建用户会话。
+    beginSession() {
+
+    }
 }
-
-
-/**
- * 获取密码哈希
- * @param password 待哈希的密码
- * @returns 密码哈希
- */
-export async function hashPassword(password: string): Promise<string> {
-    const saltRounds = 10;
-
-    let passwordHash = "";
-    await bcrypt.hash(password, saltRounds)
-        .then((hash) => {
-            passwordHash = hash;
-        })
-        .catch(reason => {
-            logger.error(reason);
-        });
-
-    return passwordHash;
-}
-
-
-/**
- * 比较密码与哈希是否相符
- * @param password 密码
- * @param hash 哈希
- * @returns 密码与哈希是否相符
- */
-export async function comparePassword(password, hash): Promise<boolean> {
-    let result = false;
-
-    await bcrypt.compare(password, hash)
-        .then((res) => {
-            result = res;
-        });
-
-    return result;
-}
-
-
-export default User;

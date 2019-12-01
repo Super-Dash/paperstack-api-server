@@ -1,14 +1,16 @@
-import sequelize from "../Database";
-import User from "./User";
-import Authkey from "./Authkey";
+export { User, UserType } from "./User";
+export { Session } from "./Session";
 
+export { Administrator } from "./Administrator";
+export { Student } from "./Student";
+export { Teacher } from "./Teacher";
 
-User.hasMany(Authkey, { foreignKey: "userId" });
+export { MailAddressVerificationCode } from "./MailAddressVerificationCode";
 
-sequelize.sync();
+export { CollectionGroup } from "./CollectionGroup";
+export { CollectionItem } from "./CollectionItem";
+export { Product } from "./Product";
+export { ProductComment } from "./ProductComment";
 
-
-export {
-    User,
-    Authkey
-};
+export { College } from "./College";
+export { ClassAndGrade } from "./ClassAndGrade";
